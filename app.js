@@ -24,16 +24,17 @@ io.on('connection', socket => {
     socket.join(user.room);
 
     // Welcome user to the chat
-    socket.emit('message', formatMessage(botName, `Welcome ${username} to ChatCord!!`));
+    socket.emit('message', formatMessage(botName, `Welcome ${user.username} to ChatCord!!`));
 
     // broadcast to user connects
-    socket.broadcast.to(user.room).emit('message', formatMessage(botName, `A ${username} has joined the chat`));
+    socket.broadcast.to(user.room).emit('message', formatMessage(botName, `A ${user.username} has joined the chat`));
   });
 
   // Listen to chat message
   socket.on('chatMessage', msg => {
+    const user = getCurrentUser(socket.id);
 
-    io.emit('message', formatMessage('Tad', msg));
+    io.to(user.room).emit('message', formatMessage(user.username, msg));
   })
 
   // Runs when client disconnects
