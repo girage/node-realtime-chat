@@ -3,6 +3,7 @@ const http = require('http');
 const express = require('express');
 const socketio = require('socket.io');
 const formatMessage = require('./utils/messages');
+const { userJoin, getCurrentUser } = require('./utils/users');
 
 const app = express();
 require('dotenv').config();
@@ -10,23 +11,24 @@ const PORT = process.env.PORT || 3050;
 const server = http.createServer(app);
 const io = socketio(server);
 
+const botName = 'Auto-Bot'
 // Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Run when client connect
 io.on('connection', socket => {
+  socket.on('joinRoom', ({ username, room }) => {
+    const user = userJoin(socket.id, username, room);
 
-  // Welcome user to the chat
-  socket.emit('message', formatMessage('Tad', 'Welcome to ChatCord!!'));
+    socket.join(user.room);
 
-  // broadcast to user connects
-  socket.broadcast.emit('message', formatMessage('Tad', 'A user has joined the chat'));
+    // Welcome user to the chat
+    socket.emit('message', formatMessage(botName, `Welcome ${username} to ChatCord!!`));
 
-  // Runs when client disconnects
-  socket.on('disconnect', () => {
-    io.emit('message', formatMessage('Tad', 'A user has left the chat'));
-  })
+    // broadcast to user connects
+    socket.broadcast.to(user.room).emit('message', formatMessage(botName, `A ${username} has joined the chat`));
+  });
 
   // Listen to chat message
   socket.on('chatMessage', msg => {
@@ -34,6 +36,10 @@ io.on('connection', socket => {
     io.emit('message', formatMessage('Tad', msg));
   })
 
+  // Runs when client disconnects
+  socket.on('disconnect', () => {
+    io.emit('message', formatMessage(botName, 'A user has left the chat'));
+  })
 })
 
 app.get('/', (req, res) => {
