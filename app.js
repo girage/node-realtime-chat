@@ -3,7 +3,7 @@ const http = require('http');
 const express = require('express');
 const socketio = require('socket.io');
 const formatMessage = require('./utils/messages');
-const { userJoin, getCurrentUser } = require('./utils/users');
+const { userJoin, getCurrentUser, userLeave, getRoomUsers, } = require('./utils/users');
 
 const app = express();
 require('dotenv').config();
@@ -28,25 +28,38 @@ io.on('connection', socket => {
 
     // broadcast to user connects
     socket.broadcast.to(user.room).emit('message', formatMessage(botName, `A ${user.username} has joined the chat`));
+
+    // Send users and room info
+    io.to(user.room).emit('roomUser', {
+      room: user.room,
+      users: getRoomUsers(user.room),
+    });
+
   });
 
   // Listen to chat message
   socket.on('chatMessage', msg => {
     const user = getCurrentUser(socket.id);
-
     io.to(user.room).emit('message', formatMessage(user.username, msg));
   })
 
   // Runs when client disconnects
   socket.on('disconnect', () => {
-    io.emit('message', formatMessage(botName, 'A user has left the chat'));
+    const user = userLeave(socket.id);
+
+    if (user) {
+      io
+        .to(user.room)
+        .emit('message', formatMessage(botName, `A ${user.username} has left the chat`));
+    };
+    
+    // Send users and room info
+    io.to(user.room).emit('roomUser', {
+      room: user.room,
+      users: getRoomUsers(user.room),
+    });
   })
-})
-
-app.get('/', (req, res) => {
-  res.send('Hello');
 });
-
 
 const start = () => {
   try {
